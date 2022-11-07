@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "hw1"
+version = "0.1.0"
+description = "My very first homework on MLOps course @ FTDA"
+authors = ["Armine Titizian <takkat14@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+pandas = "^1.5.1"
+flask = "^2.2.2"
+gunicorn = "^20.1.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
