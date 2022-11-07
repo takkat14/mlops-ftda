@@ -1,0 +1,4 @@
+is_zip: false
+in_path: "https://docs.google.com/d/19UVndWOUPmp9coCqdGDNCDJwiPfFJTgQdSKdw5wGG74/"
+zip_path: "data/data_raw.zip"
+out_path: "data/data.csv"
