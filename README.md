@@ -4,17 +4,17 @@ Code of the first homework on MLOps course HSE FTDA
 
 TODO:
 
-[ ] Flask app
+[_] Flask app
 
-[ ] GRPC
+[_] GRPC
 
-[ ] Minio
+[_] Minio
 
-[ ] Docker
+[_] Docker
 
-[ ] Minikube
+[_] Minikube
 
-[ ] CI/CD
+[_] CI/CD
 
-[ ] UNIT-tests
+[_] UNIT-tests
 
