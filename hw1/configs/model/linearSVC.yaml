@@ -1,5 +1,0 @@
-cut_stopwords: false
-model_path: "models/linearSVC.pkl"
-model:
-  _target_: sklearn.svm.LinearSVC
-  C: 0.01

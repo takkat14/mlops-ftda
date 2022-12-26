@@ -1,5 +1,5 @@
 from flask import Flask
-import data.data_loader as dl
+import data.data_preproccesor as dl
 import os
 
 app = Flask(__name__)
@@ -18,6 +18,12 @@ def testing_download():
 def list_available_models():
     pass
 
+
+@app.route("/models/add")
+def train():
+    # train
+    # add model to config
+    return
 
 
 
