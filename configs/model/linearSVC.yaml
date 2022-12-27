@@ -1,4 +1,4 @@
-model_path_template: "models/linearSVC.pkl"
+model_path_template: "models/linearSVC_{}.pk"
 tfidf:
   _target_: sklearn.feature_extraction.text.TfidfVectorizer
 model:

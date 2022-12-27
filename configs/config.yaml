@@ -1,3 +1,4 @@
 defaults:
   - dataset
   - flask
+  - hydra

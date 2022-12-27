@@ -1,4 +1,8 @@
-is_zip: false
-in_path: "https://docs.google.com/d/19UVndWOUPmp9coCqdGDNCDJwiPfFJTgQdSKdw5wGG74/"
-zip_path: "data/data_raw.zip"
-out_path: "data/data.csv"
+dataset:
+  is_zip: true
+  in_path: "1NOjlqTGfwgm4eWq0cH8W1uOF4U2kic6j"
+  zip_path: "data/data_raw.zip"
+  out_path: "data/data.csv"
+  out_dir:  "data/"
+  train_size: 0.75
+  seed: 42
