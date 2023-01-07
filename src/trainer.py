@@ -13,7 +13,7 @@ class ModelTrainer():
                  load_model = False,
                  model_path=None,
                  ) -> None:
-        """_summary_
+        """ Object of this class trains your model
 
         Args:
             model_class (class of sklearn.base.BaseEstimator): sklearn BaseEstimator-like class

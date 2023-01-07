@@ -21,6 +21,7 @@ def get_train_test_data(cfg: DictConfig) -> Tuple[pd.DataFrame, pd.DataFrame, pd
     return preprocessor.prepare_data(cfg.dataset.train_size, cfg.dataset.seed)
 
 
+#  This one could have classmethods but config is required
 class DataLoader():
 
     def __init__(self, cfg: DictConfig) -> None:
