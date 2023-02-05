@@ -7,7 +7,7 @@ __pycache__/
 *.so
 *.zip
 __MACOSX
-.idea
+.idea/
 
 # Distribution / packaging
 .Python
@@ -136,3 +136,4 @@ dmypy.json
 
 .DS_Store
 data/data.csv
+temp_data/
