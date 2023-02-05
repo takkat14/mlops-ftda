@@ -2,3 +2,5 @@ defaults:
   - dataset
   - flask
   - hydra
+  - mongo
+  - minio

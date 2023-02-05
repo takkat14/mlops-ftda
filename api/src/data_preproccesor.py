@@ -1,7 +1,6 @@
 # Here you can find anything related to data downloading and processing
 
 import gdown  # Don't know better way to download dataset
-import typing
 from typing import Tuple
 import zipfile
 import logging
@@ -10,9 +9,13 @@ from sklearn.model_selection import train_test_split
 from omegaconf import DictConfig
 from hydra.utils import to_absolute_path
 import os
+import numpy as np
 
 
-def get_train_test_data(cfg: DictConfig) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]:
+def get_train_test_data(cfg: DictConfig) -> Tuple[pd.DataFrame,
+                                                  pd.DataFrame,
+                                                  pd.Series,
+                                                  pd.Series]:
     out_path = to_absolute_path(cfg.dataset.out_path)
     if not os.path.exists(out_path):
         loader = DataLoader(cfg)
@@ -21,7 +24,6 @@ def get_train_test_data(cfg: DictConfig) -> Tuple[pd.DataFrame, pd.DataFrame, pd
     return preprocessor.prepare_data(cfg.dataset.train_size, cfg.dataset.seed)
 
 
-#  This one could have classmethods but config is required
 class DataLoader():
 
     def __init__(self, cfg: DictConfig) -> None:
@@ -73,7 +75,7 @@ class TrainDataPreprocessor():
     def __init__(self, path: str) -> None:
         self.path = path
 
-    def prepare_data(self, train_size: float = 0.75, seed=0XDEAD) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]:
+    def prepare_data(self, train_size: float = 0.75, seed=0XDEAD) -> Tuple[np.array, np.array, np.array, np.array]:
 
         df = pd.read_csv(self.path)
 
@@ -92,5 +94,7 @@ class TrainDataPreprocessor():
             ' \\\n' + df['description'].str[:]
 
         X_train, X_test, y_train, y_test = train_test_split(
-            df[['title&description']], df['Category'], train_size=train_size, random_state=seed)
+            df[['title&description']], df['Category'],
+            train_size=train_size,
+            random_state=seed)
         return X_train, X_test, y_train, y_test

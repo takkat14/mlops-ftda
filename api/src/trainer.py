@@ -1,24 +1,25 @@
-import typing
-import sklearn
-import sklearn.feature_extraction
+from typing import Iterable
 import numpy as np
 from sklearn.pipeline import make_pipeline
 import joblib
+from dao import MinioDAO, MongoDAO
 
 
 class ModelTrainer():
-    def __init__(self, model_class: sklearn.base.BaseEstimator,
-                 vectorizer: sklearn.feature_extraction.text.TfidfVectorizer,
+    def __init__(self, model_class,  # classname sklearn.base.BaseEstimator,
+                 vectorizer,  # sklearn.feature_extraction.text.TfidfVectorizer
                  model_params: dict,
-                 load_model = False,
+                 common_cfg: dict,
+                 load_model=False,
                  model_path=None,
                  ) -> None:
         """ Object of this class trains your model
 
         Args:
-            model_class (class of sklearn.base.BaseEstimator): sklearn BaseEstimator-like class
+            model_class (class of sklearn.base.BaseEstimator): classname
             hyperparameters (dict): dictionary of hyperparameters for model
         """
+        self.common_cfg = common_cfg
         if load_model and model_path is None:
             raise AttributeError("No model path provided to load from")
 
@@ -27,16 +28,14 @@ class ModelTrainer():
         if load_model:
             self.pipeline = joblib.load(model_path)
         else:
-            self.model = model_class(**self.model_params)
+            self.model = model_class(**self.params)
             self.pipeline = make_pipeline(vectorizer(), self.model)
 
-
-
-    def fit(self, train_data: np.ndarray, train_target: np.array) -> None:
+    def fit(self, train_data: np.ndarray, train_target: np.ndarray) -> None:
         """ fit model
 
         Args:
-            train_data (numpy.ndarray, numpy.ndarray): train feature table 
+            train_data (numpy.ndarray, numpy.ndarray): train feature table
             train_target (numpy.array): _description_
         """
         self.pipeline.fit(train_data, train_target)
@@ -45,11 +44,11 @@ class ModelTrainer():
         """predict on trained model
 
         Args:
-            test_data (np.ndarray): prediction feature table 
+            test_data (np.ndarray): prediction feature table
         """
         return self.pipeline.predict(test_data)
 
-    def score(self, test_data: typing.Iterable, ground_truth: typing.Iterable) -> typing.DefaultDict():
+    def score(self, test_data: Iterable, ground_truth: Iterable) -> dict:
         return {
             "accuracy": self.pipeline.score(test_data, ground_truth)
         }
@@ -70,5 +69,7 @@ class ModelTrainer():
         """
         return self.pipeline
 
-    def save_model(self, path: str):
+    def save_model(self, bucket: str, path: str):
         joblib.dump(self.pipeline, path)
+        minio_dao = MinioDAO(self.common_cfg.minio.host,
+                            self.common_cfg.minio.root_user, )

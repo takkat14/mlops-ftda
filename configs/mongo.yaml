@@ -1,0 +1,6 @@
+mongo:
+  port: 27017
+  host: 127.0.0.1
+  dbname: mlopsdb
+  models_collection: models
+  datasets_collection: datasets

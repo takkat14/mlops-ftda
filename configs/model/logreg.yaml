@@ -1,4 +1,4 @@
-model_path_template: "models/logreg_{}.pk"
+model_path_template: "models/logreg_%s.pk"
 tfidf:
   _target_: sklearn.feature_extraction.text.TfidfVectorizer
 model:

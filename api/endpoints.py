@@ -1,18 +1,35 @@
+from flask_restx import Api, Resource, fields
+import os
+from flask import jsonify
+from api.src import dao
+from api.src.dao import DAO
+from configurator import get_config
+from bson import json_util
+import json
+from src.trainer import ModelTrainer
+from src.data_preproccesor import get_train_test_data
 
-from flask_restx import Api, Resource
+def parse_json(data):
+    return json.loads(json_util.dumps(data))
 
 
 api = Api()
+cfg = get_config()
+
+@api.route("/models/list")
+class ModelList(Resource):
+    @api.doc(responses={201: "Success"})
+    def get(self):
+        dao = DAO(f"mongodb://{cfg.mongo.host}/{cfg.mongo.port}",
+                  cfg.mongo.dbname,  cfg.mongo.models_collection)
+        models = dao.list_documents()
+        result = list(models)
+        dao.shutdown()
+        return parse_json(result), 201
 
 
 model_add = api.model(
     "Model.add.input", {
-        "name":
-        fields.String(
-            required=True,
-            title="Model name",
-            description="Used as a key in local models storage; Must be unique;"
-        ),
         "type":
         fields.String(required=True,
                       title="Model type",
@@ -25,18 +42,30 @@ model_add = api.model(
             default="{}")
     })
 
+
 @api.route("/models/add")
 class ModelAdd(Resource):
     @api.expect(model_add)
     @api.doc(
         responses={
-            201: "Success", # Create your own responces
-
+            201: "Success",
+            401: "'params' error; Params must be a valid json or dict",
+            402: "Error while initializing model; \
+            See description for more info",
+            408: "Failed to reach DB"
         })
     def post(self):
-        __name = api.payload["name"]
         __type = api.payload["type"]
         __rawParams = api.payload["params"]
+
+        try:
+            classname = cfg.model[__type]
+        except Exception as e:
+            return {
+                "status": "Failed",
+                "message":
+                "'type' error; Model type is unknown. Please, use 'linearSVC' or 'logreg'"
+            }, 402
 
         try:
             __params = eval(__rawParams)
@@ -48,69 +77,27 @@ class ModelAdd(Resource):
             }, 401
 
         try:
-            __modelsList = get_existing_models()
+            dao = DAO(f"mongodb://{cfg.mongo.host}/{cfg.mongo.port}",
+                  cfg.mongo.dbname,  cfg.mongo.models_collection)
+            
         except Exception as e:
             return {
                 "status": "Failed",
                 "message": getattr(e, "message", repr(e))
             }, 408
 
-        if __name not in __modelsList:
-            try:
-                __model = Model(model_type=__type, model_args=__params)
-                __weights = BytesIO()
-                pickle.dump(__model, __weights)
-                __weights.seek(0)
+        
+        try:
+            model_trainer = ModelTrainer(classname, cfg.model.tfidf, 
+            model_params=__params, load_model=False, model_path=cfg.model[__type].model_path)
+            X_train, X_test, y_train, y_test = get_train_test_data(cfg)
+            model_trainer.fit(X_train, y_train)
+            model_trainer.save_model(model_trainer.model_path)
 
-                engine_postgres = create_engine(POSTGRES_CONN_STRING)
-                engine_postgres.execution_options(autocommit=True).execute(
-                    f"""
-                    INSERT INTO public.models ("modelName", "modelType", "modelParams", "weights")
-                    VALUES (%s,%s,%s,%s);
-                    """,
-                    (__name, __type, __rawParams, psycopg2.Binary(__weights.read()))
-                )
-                engine_postgres.dispose()
-
-                return {"status": "OK", "message": "Model created!"}, 201
-            except Exception as e:
-                raise
-                return {
-                    "status": "Failed",
-                    "message": getattr(e, "message", repr(e))
-                }, 402
-        else:
+            return {"status": "OK", "message": "Model created!"}, 201
+        except Exception as e:
+            raise
             return {
                 "status": "Failed",
-                "message": "Model with a given name already exists"
-            }, 403
-
-
-
-@api.route("/models/list")
-class ModelList(Resource):
-    @api.doc(responses={200: "Success"})
-    def get(self):
-        models = os.listdir("models")
-        return {"models": models}, 200
-
-
-@app.route("/")
-def hello():
-    return "<h1 style='color:blue'>Hello There!</h1>"
-
-
-@app.route("/download")
-def testing_download():
-    get_train_test_data(cfg)
-
-
-@app.route("/models/list")
-def list_available_models():
-    return os.listdir(to_absolute_path("models"))
-
-
-# @app.route("/models/add")
-# def train():
-#     X_train, X_test, y_train, y_test = get_train_test_data(cfg)
-#     return 200
+                "message": getattr(e, "message", repr(e))
+            }, 402
