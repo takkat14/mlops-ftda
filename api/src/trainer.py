@@ -1,17 +1,21 @@
-from typing import Iterable
+from typing import Iterable, Optional
 import numpy as np
 from sklearn.pipeline import make_pipeline
 import joblib
-from dao import MinioDAO, MongoDAO
+from dao import MinioDAO, MongoDAO, MongoError
+from omegaconf import DictConfig
+import bson
+import time
 
 
 class ModelTrainer():
     def __init__(self, model_class,  # classname sklearn.base.BaseEstimator,
                  vectorizer,  # sklearn.feature_extraction.text.TfidfVectorizer
                  model_params: dict,
-                 common_cfg: dict,
+                 common_cfg: DictConfig,
                  load_model=False,
                  model_path=None,
+                 model_type="linearSVC"
                  ) -> None:
         """ Object of this class trains your model
 
@@ -30,6 +34,8 @@ class ModelTrainer():
         else:
             self.model = model_class(**self.params)
             self.pipeline = make_pipeline(vectorizer(), self.model)
+        self.model_path_template = common_cfg.model[model_type].model_path_template
+        self.model_type = model_type
 
     def fit(self, train_data: np.ndarray, train_target: np.ndarray) -> None:
         """ fit model
@@ -69,7 +75,43 @@ class ModelTrainer():
         """
         return self.pipeline
 
-    def save_model(self, bucket: str, path: str):
+    def save_model(self, idx: Optional[str] = None):
+        """_summary_
+
+        Args:
+            idx (str, optional): _description_. Defaults to None.
+
+        Raises:
+            MongoError: _description_
+        """
+        is_created = False if idx is None else True
+        _id = str(bson.ObjectId()) if is_created else idx
+        path = self.model_path_template.format(_id)
+        
         joblib.dump(self.pipeline, path)
-        minio_dao = MinioDAO(self.common_cfg.minio.host,
-                            self.common_cfg.minio.root_user, )
+
+        bucket = self.common_cfg.minio.models_bucket
+        minio_dao = MinioDAO(host=self.common_cfg.minio.host,
+                             port=self.common_cfg.minio.port,
+                             user=self.common_cfg.minio.root_user,
+                             password=self.common_cfg.minio.root_password,
+                             bucket=bucket)
+
+        minio_dao.save_to_bucket(bucket, path, path)
+        mongo_cfg = self.common_cfg.mongo
+        mongo_dao = MongoDAO(mongo_cfg.host, mongo_cfg.port, mongo_cfg.dbname,
+                             mongo_cfg.models_collection)
+
+        found = mongo_dao.find_by_id(_id)
+        createdTimeS = found["createdTimeS"] if found else time.time()
+
+        metadata = {
+            "minio_path": f"{bucket}/{path}",
+            "model_type": self.model_type,
+            "params": self.get_model_params(),
+            "createdTimeS": createdTimeS,
+            "updatedTimeS": time.time(),
+        }
+        if mongo_dao.upsert(_id, metadata) is None:
+            raise MongoError(f"Upsert is failed for {_id}")
+

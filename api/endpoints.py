@@ -2,7 +2,7 @@ from flask_restx import Api, Resource, fields
 import os
 from flask import jsonify
 from api.src import dao
-from api.src.dao import DAO
+from api.src.dao import MongoDAO
 from configurator import get_config
 from bson import json_util
 import json
@@ -20,7 +20,7 @@ cfg = get_config()
 class ModelList(Resource):
     @api.doc(responses={201: "Success"})
     def get(self):
-        dao = DAO(f"mongodb://{cfg.mongo.host}/{cfg.mongo.port}",
+        dao = MongoDAO(cfg.mongo.host, cfg.mongo.port,
                   cfg.mongo.dbname,  cfg.mongo.models_collection)
         models = dao.list_documents()
         result = list(models)
