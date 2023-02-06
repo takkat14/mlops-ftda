@@ -1,6 +1,0 @@
-model_path_template: "models/linearSVC_{}.pk"
-tfidf:
-  _target_: sklearn.feature_extraction.text.TfidfVectorizer
-model:
-  _target_: sklearn.svm.LinearSVC
-  C: 0.01

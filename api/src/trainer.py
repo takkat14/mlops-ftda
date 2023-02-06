@@ -2,10 +2,18 @@ from typing import Iterable, Optional
 import numpy as np
 from sklearn.pipeline import make_pipeline
 import joblib
-from dao import MinioDAO, MongoDAO, MongoError
+from api.src.dao import MinioDAO, MongoDAO, MongoError
 from omegaconf import DictConfig
 import bson
 import time
+from hydra.utils import instantiate
+import tempfile
+import json
+
+
+# Стырила из гиста: https://gist.github.com/ramhiser/28a4161de35b670a3e3b8a4dcb664bb0
+def step_fullname(o):
+    return o.__module__ + "." + o.__class__.__name__
 
 
 class ModelTrainer():
@@ -15,7 +23,8 @@ class ModelTrainer():
                  common_cfg: DictConfig,
                  load_model=False,
                  model_path=None,
-                 model_type="linearSVC"
+                 model_type="linearSVC",
+                 logger=None,
                  ) -> None:
         """ Object of this class trains your model
 
@@ -31,9 +40,13 @@ class ModelTrainer():
         self.params = model_params
         if load_model:
             self.pipeline = joblib.load(model_path)
+            self.params = self.pipeline.get_params()
         else:
-            self.model = model_class(**self.params)
-            self.pipeline = make_pipeline(vectorizer(), self.model)
+            self.model = instantiate(model_class, **self.params)
+            self.pipeline = make_pipeline(instantiate(vectorizer), self.model)
+        if logger:
+            self.logger = logger
+            self.logger.warning("Made everything")
         self.model_path_template = common_cfg[model_type].model_path_template
         self.model_type = model_type
 
@@ -44,7 +57,11 @@ class ModelTrainer():
             train_data (numpy.ndarray, numpy.ndarray): train feature table
             train_target (numpy.array): _description_
         """
-        self.pipeline.fit(train_data, train_target)
+        if len(train_data.shape) > 1:
+            _train_data = train_data.reshape(-1,)
+        else:
+            _train_data = train_data
+        self.pipeline.fit(_train_data, train_target)
 
     def predict(self, test_data: np.ndarray) -> None:
         """predict on trained model
@@ -55,8 +72,12 @@ class ModelTrainer():
         return self.pipeline.predict(test_data)
 
     def score(self, test_data: Iterable, ground_truth: Iterable) -> dict:
+        if len(test_data.shape) > 1:  # type: ignore
+            _test_data = test_data.reshape(-1,)  # type: ignore
+        else:
+            _test_data = test_data
         return {
-            "accuracy": self.pipeline.score(test_data, ground_truth)
+            "accuracy": self.pipeline.score(_test_data, ground_truth)
         }
 
     def get_model_params(self):
@@ -65,7 +86,24 @@ class ModelTrainer():
         Returns:
             dict: dict of hyperparameters
         """
-        return self.pipeline.get_params()
+        steps_obj = {'steps': []}
+        for name, md in self.pipeline.steps:
+            normal_params = {}
+            params = md.get_params()
+            for param in params:
+                val = params[param]
+                if not isinstance(val, str) or \
+                   not isinstance(val, float) or not isinstance(val, int):
+                    normal_params[param] = str(val)
+                else:
+                    normal_params[param] = val
+            steps_obj['steps'].append({
+                'name': name,
+                'class_name': str(step_fullname(md)),
+                'params': normal_params
+            })
+
+        return steps_obj
 
     def get_model(self):
         """Getter of model
@@ -84,11 +122,9 @@ class ModelTrainer():
         Raises:
             MongoError: _description_
         """
-        is_created = False if idx is None else True
+        is_created = False if idx is not None else True
         _id = str(bson.ObjectId()) if is_created else idx
         path = self.model_path_template.format(_id)
-
-        joblib.dump(self.pipeline, path)
 
         bucket = self.common_cfg.minio.models_bucket
         minio_dao = MinioDAO(host=self.common_cfg.minio.host,
@@ -97,7 +133,9 @@ class ModelTrainer():
                              password=self.common_cfg.minio.root_password,
                              bucket=bucket)
 
-        minio_dao.save_to_bucket(bucket, path, path)
+        with tempfile.NamedTemporaryFile() as fp:
+            joblib.dump(self.pipeline, fp.name)
+            minio_dao.save_to_bucket(bucket, path, fp.name)
         mongo_cfg = self.common_cfg.mongo
         mongo_dao = MongoDAO(mongo_cfg.host, mongo_cfg.port, mongo_cfg.dbname,
                              mongo_cfg.models_collection)
@@ -112,5 +150,8 @@ class ModelTrainer():
             "createdTimeS": createdTimeS,
             "updatedTimeS": time.time(),
         }
+        self.logger.warning(str(metadata))
         if mongo_dao.upsert(_id, metadata) is None:  # type: ignore
             raise MongoError(f"Upsert is failed for {_id}")
+        return _id
+

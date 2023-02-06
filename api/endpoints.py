@@ -4,8 +4,9 @@ from api.src.dao import MongoDAO
 from configurator import get_config
 from bson import json_util
 import json
-from src.trainer import ModelTrainer
-from src.data_preproccesor import get_train_test_data
+from api.src.trainer import ModelTrainer
+from api.src.data_preproccesor import get_train_test_data
+from logger import create_logger
 
 
 def parse_json(data):
@@ -14,6 +15,9 @@ def parse_json(data):
 
 api = Api()
 cfg = get_config()
+logger = create_logger()
+
+
 
 
 @api.route("/models/list")
@@ -33,13 +37,15 @@ model_add = api.model(
         "type":
         fields.String(required=True,
                       title="Model type",
-                      description="Must be 'logreg' or 'linearSVC';"),
+                      description="Must be 'logreg' or 'linearSVC';",
+                      default="linearSVC",
+                      ),
         "params":
         fields.String(
             required=True,
             title="Model params",
             description="Params to use in model init; Must be valid dict;",
-            default="{}")
+            default="{'C': 0.5}")
     })
 
 
@@ -49,9 +55,9 @@ class ModelAdd(Resource):
     @api.doc(
         responses={
             201: "Success",
-            401: "'params' error; Params must be a valid json or dict",
-            402: "Error while initializing model; \
-            See description for more info",
+            400: "Unable to init model",
+            401: "Model fitting issue",
+            404: "Unable to get data",
             408: "Failed to reach DB"
         })
     def post(self):
@@ -61,42 +67,57 @@ class ModelAdd(Resource):
         try:
             classname = cfg[__type].model
             vectorizer = cfg[__type].tfidf
-        except Exception:
+            print(cfg)
+        except Exception as e:
             return {
                 "status": "Failed",
-                "message":
-                "'type' error; Model type is unknown. Please, use \
-                'linearSVC' or 'logreg'"
-            }, 402
+                "message": getattr(e, "message", repr(e))
+            }, 400
 
         try:
             __params = eval(__rawParams)
-        except Exception:
+        except Exception as e:
             return {
                 "status": "Failed",
-                "message":
-                "'params' error; Params must be a valid json or dict"
-            }, 401
+                "message": "Bad request. Params should be valid dict. Original message: " + getattr(e, "message", repr(e))
+            }, 400
 
         try:
             model_trainer = ModelTrainer(classname, vectorizer,
                                          model_params=__params,
                                          load_model=False,
-                                         model_path=cfg[__type].model_path,
-                                         common_cfg=cfg)
-            X_train, X_test, y_train, y_test = get_train_test_data(cfg)
-            model_trainer.fit(X_train, y_train)
-            model_trainer.save_model(model_trainer.model_path)
-            test_score = model_trainer.score(X_test, y_test)
-            train_score = model_trainer.score(X_test, y_test)
-
-            return {"status": "OK",
-                    "message": f"""Model created!
-                    Test accuracy is {test_score["accuracy"]}
-                    Train accuracy is {train_score["accuracy"]}
-                    """}, 201
+                                         model_path=None,
+                                         common_cfg=cfg,
+                                         logger=logger)
         except Exception as e:
             return {
                 "status": "Failed",
-                "message": getattr(e, "message", repr(e))
-            }, 402
+                "message": "Unable to init trainer. Original message: " + getattr(e, "message", repr(e))
+            }, 401
+        
+        try:
+            X_train, X_test, y_train, y_test = get_train_test_data(cfg)
+            model_trainer.fit(X_train.values, y_train)
+        except Exception as e:
+            return {
+                "status": "Failed",
+                "message": "Error occured while fitting. Original message: " +
+                getattr(e, "message", repr(e))
+            }, 401
+        try:
+            _id = model_trainer.save_model(model_trainer.model_path)
+        except Exception as e:
+            return {
+                "status": "Failed",
+                "message": "Error occured while saving. Original message: " +
+                getattr(e, "message", repr(e))
+            }, 408
+
+        test_score = model_trainer.score(X_test.values, y_test)
+        train_score = model_trainer.score(X_train.values, y_train)
+        return {"status": "OK",
+                "message": f"""Model created!
+                Test accuracy is {test_score["accuracy"]}!
+                Train accuracy is {train_score["accuracy"]}!
+                Model _id is {_id}
+                """}, 201

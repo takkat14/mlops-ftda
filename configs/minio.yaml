@@ -4,5 +4,5 @@ minio:
   server_port: 9000
   root_user: "mlops-sucker"
   root_password: "i-love-mlops"
-  models_bucket: "fancy_models"
-  datasets_bucket: "fancy_datasets"
+  models_bucket: "fancy-models"
+  datasets_bucket: "fancy-datasets"

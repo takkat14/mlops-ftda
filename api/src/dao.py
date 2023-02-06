@@ -2,7 +2,8 @@ import pymongo
 import bson
 import minio
 from minio.error import S3Error
-from typing import Iterable, Optional, Any
+from typing import Iterable, Any
+import io
 
 
 class MongoError(Exception):
@@ -16,7 +17,6 @@ class MinioError(Exception):
 
 
 class MongoDAO:
-
     def __init__(self, host: str, port: str, db: str, collection: str) -> None:
         """
         Basic class for data access in MongoDB.
@@ -34,7 +34,7 @@ class MongoDAO:
     def with_collection(self, collection: str) -> None:
         self.collection = self.db[collection]
 
-    def find_by_id(self, _id: Any[str, None]) -> Optional[Any]:
+    def find_by_id(self, _id):
         # Exception handling here
         if _id is None:
             return None
@@ -71,8 +71,9 @@ class MinioDAO:
                  port: str, bucket: str) -> None:
 
         self.host = host
-        self.client = minio.Minio(f"{host}/{port}",
-                                  access_key=user, secret_key=password)
+        self.client = minio.Minio(f"{host}:{port}",
+                                  access_key=user, secret_key=password,
+                                  secure=False)
         if not self.client.bucket_exists(bucket_name=bucket):
             self.client.make_bucket(bucket_name=bucket)
         self.port = port
@@ -98,11 +99,19 @@ class MinioDAO:
         try:
             response = self.client.get_object(bucket_name=bucket,
                                               object_name=path_in_bucket)
+            data = io.BytesIO()
+            data.write(response.read())
+            data.seek(0)
+            return data
+        except S3Error as e:
+            if e.code == "NoSuchKey":
+                response = None
+            else:
+                raise e
         finally:
             if response is not None:
                 response.close()
                 response.release_conn()
-        return response
 
     def get_full_path(self, bucket: str, path_in_bucket: str):
         if self.get_from_bucket(bucket, path_in_bucket) is None:

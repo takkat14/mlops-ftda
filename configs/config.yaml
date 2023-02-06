@@ -4,3 +4,4 @@ defaults:
   - hydra
   - mongo
   - minio
+  - model
