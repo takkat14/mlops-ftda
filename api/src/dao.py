@@ -10,6 +10,11 @@ class MongoError(Exception):
         super().__init__(message)
 
 
+class MinioError(Exception):
+    def __init__(self, message):
+        super().__init__(message)
+
+
 class MongoDAO:
 
     def __init__(self, host: str, port: str, db: str, collection: str) -> None:
@@ -70,6 +75,7 @@ class MinioDAO:
                                   access_key=user, secret_key=password)
         if not self.client.bucket_exists(bucket_name=bucket):
             self.client.make_bucket(bucket_name=bucket)
+        self.port = port
 
     def list_bucket_items(self, bucket: str) -> Iterable[Any]:
         try:
@@ -86,7 +92,19 @@ class MinioDAO:
     def remove_from_bucket(self, bucket: str, path_in_bucket: str) -> None:
         self.client.remove_object(bucket_name=bucket,
                                   object_name=path_in_bucket)
-    
+
     def get_from_bucket(self, bucket: str, path_in_bucket: str):
-        return self.client.get_object(bucket_name=bucket,
-                                      object_name=path_in_bucket)
+        response = None
+        try:
+            response = self.client.get_object(bucket_name=bucket,
+                                              object_name=path_in_bucket)
+        finally:
+            if response is not None:
+                response.close()
+                response.release_conn()
+        return response
+
+    def get_full_path(self, bucket: str, path_in_bucket: str):
+        if self.get_from_bucket(bucket, path_in_bucket) is None:
+            raise MinioError(f"Not found {bucket}/{path_in_bucket}")
+        return f"{self.host}/{self.port}/{bucket}/{path_in_bucket}"

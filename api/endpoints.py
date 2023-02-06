@@ -1,13 +1,12 @@
 from flask_restx import Api, Resource, fields
-import os
-from flask import jsonify
-from api.src import dao
+
 from api.src.dao import MongoDAO
 from configurator import get_config
 from bson import json_util
 import json
 from src.trainer import ModelTrainer
 from src.data_preproccesor import get_train_test_data
+
 
 def parse_json(data):
     return json.loads(json_util.dumps(data))
@@ -16,12 +15,13 @@ def parse_json(data):
 api = Api()
 cfg = get_config()
 
+
 @api.route("/models/list")
 class ModelList(Resource):
     @api.doc(responses={201: "Success"})
     def get(self):
         dao = MongoDAO(cfg.mongo.host, cfg.mongo.port,
-                  cfg.mongo.dbname,  cfg.mongo.models_collection)
+                       cfg.mongo.dbname,  cfg.mongo.models_collection)
         models = dao.list_documents()
         result = list(models)
         dao.shutdown()
@@ -59,17 +59,19 @@ class ModelAdd(Resource):
         __rawParams = api.payload["params"]
 
         try:
-            classname = cfg.model[__type]
-        except Exception as e:
+            classname = cfg[__type].model
+            vectorizer = cfg[__type].tfidf
+        except Exception:
             return {
                 "status": "Failed",
                 "message":
-                "'type' error; Model type is unknown. Please, use 'linearSVC' or 'logreg'"
+                "'type' error; Model type is unknown. Please, use \
+                'linearSVC' or 'logreg'"
             }, 402
 
         try:
             __params = eval(__rawParams)
-        except Exception as e:
+        except Exception:
             return {
                 "status": "Failed",
                 "message":
@@ -77,26 +79,23 @@ class ModelAdd(Resource):
             }, 401
 
         try:
-            dao = DAO(f"mongodb://{cfg.mongo.host}/{cfg.mongo.port}",
-                  cfg.mongo.dbname,  cfg.mongo.models_collection)
-            
-        except Exception as e:
-            return {
-                "status": "Failed",
-                "message": getattr(e, "message", repr(e))
-            }, 408
-
-        
-        try:
-            model_trainer = ModelTrainer(classname, cfg.model.tfidf, 
-            model_params=__params, load_model=False, model_path=cfg.model[__type].model_path)
+            model_trainer = ModelTrainer(classname, vectorizer,
+                                         model_params=__params,
+                                         load_model=False,
+                                         model_path=cfg[__type].model_path,
+                                         common_cfg=cfg)
             X_train, X_test, y_train, y_test = get_train_test_data(cfg)
             model_trainer.fit(X_train, y_train)
             model_trainer.save_model(model_trainer.model_path)
+            test_score = model_trainer.score(X_test, y_test)
+            train_score = model_trainer.score(X_test, y_test)
 
-            return {"status": "OK", "message": "Model created!"}, 201
+            return {"status": "OK",
+                    "message": f"""Model created!
+                    Test accuracy is {test_score["accuracy"]}
+                    Train accuracy is {train_score["accuracy"]}
+                    """}, 201
         except Exception as e:
-            raise
             return {
                 "status": "Failed",
                 "message": getattr(e, "message", repr(e))

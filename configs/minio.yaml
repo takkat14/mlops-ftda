@@ -5,3 +5,4 @@ minio:
   root_user: "mlops-sucker"
   root_password: "i-love-mlops"
   models_bucket: "fancy_models"
+  datasets_bucket: "fancy_datasets"

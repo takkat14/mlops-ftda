@@ -6,3 +6,4 @@ dataset:
   out_dir:  "data/"
   train_size: 0.75
   seed: 42
+  minio_path: "raw_data.csv"

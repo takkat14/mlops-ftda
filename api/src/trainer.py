@@ -34,7 +34,7 @@ class ModelTrainer():
         else:
             self.model = model_class(**self.params)
             self.pipeline = make_pipeline(vectorizer(), self.model)
-        self.model_path_template = common_cfg.model[model_type].model_path_template
+        self.model_path_template = common_cfg[model_type].model_path_template
         self.model_type = model_type
 
     def fit(self, train_data: np.ndarray, train_target: np.ndarray) -> None:
@@ -87,12 +87,12 @@ class ModelTrainer():
         is_created = False if idx is None else True
         _id = str(bson.ObjectId()) if is_created else idx
         path = self.model_path_template.format(_id)
-        
+
         joblib.dump(self.pipeline, path)
 
         bucket = self.common_cfg.minio.models_bucket
         minio_dao = MinioDAO(host=self.common_cfg.minio.host,
-                             port=self.common_cfg.minio.port,
+                             port=self.common_cfg.minio.server_port,
                              user=self.common_cfg.minio.root_user,
                              password=self.common_cfg.minio.root_password,
                              bucket=bucket)
@@ -112,6 +112,5 @@ class ModelTrainer():
             "createdTimeS": createdTimeS,
             "updatedTimeS": time.time(),
         }
-        if mongo_dao.upsert(_id, metadata) is None:
+        if mongo_dao.upsert(_id, metadata) is None:  # type: ignore
             raise MongoError(f"Upsert is failed for {_id}")
-
