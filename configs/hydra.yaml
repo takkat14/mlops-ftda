@@ -1,5 +1,0 @@
-hydra:
-  run:
-    dir: .
-# output files creation
-output_subdir: null

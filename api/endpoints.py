@@ -16,8 +16,9 @@ def parse_json(data):
 
 api = Api(version='1.0', title="MLOps sucker",
           description="takkat's fancy MLOps API")
-cfg = get_config()
 logger = create_logger()
+cfg = get_config()
+logger.warning(cfg)
 
 
 @api.route("/models/list")
