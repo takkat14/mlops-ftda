@@ -1,6 +1,4 @@
 # Here you can find anything related to data downloading and processing
-
-from email import message
 import gdown  # Don't know better way to download dataset
 from typing import List
 import zipfile
@@ -31,7 +29,7 @@ def get_train_test_data(cfg: DictConfig) -> List[np.ndarray]:
                                  cfg.dataset.minio_path, out_path)
 
     s3_obj = minio_dao.get_from_bucket(cfg.minio.datasets_bucket,
-                                      cfg.dataset.minio_path)
+                                       cfg.dataset.minio_path)
     preprocessor = TrainDataPreprocessor(obj=s3_obj)
     return preprocessor.prepare_data(cfg.dataset.train_size, cfg.dataset.seed)
 
@@ -112,9 +110,11 @@ class TrainDataPreprocessor():
 
         f_in = self.path if self.path else self.obj
         try:
-            df = pd.read_csv(f_in, index_col=0) # type:ignore
+            df = pd.read_csv(f_in, index_col=0)  # type:ignore
         except Exception as e:
-            raise Exception(f"F_in type is {str(type(f_in))}. Original message: " + getattr(e, "message", repr(e)))
+            raise Exception(f"F_in type is {str(type(f_in))}. \
+                            Original message: " +
+                            getattr(e, "message", repr(e)))
 
         df.fillna("", inplace=True)
 

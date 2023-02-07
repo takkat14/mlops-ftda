@@ -8,10 +8,10 @@ import bson
 import time
 from hydra.utils import instantiate
 import tempfile
-import json
 
 
-# Стырила из гиста: https://gist.github.com/ramhiser/28a4161de35b670a3e3b8a4dcb664bb0
+# Стырила из гиста:
+# https://gist.github.com/ramhiser/28a4161de35b670a3e3b8a4dcb664bb0
 def step_fullname(o):
     return o.__module__ + "." + o.__class__.__name__
 
@@ -22,7 +22,7 @@ class ModelTrainer():
                  model_params: dict,
                  common_cfg: DictConfig,
                  load_model=False,
-                 model_path=None,
+                 model_obj=None,
                  model_type="linearSVC",
                  logger=None,
                  ) -> None:
@@ -33,13 +33,12 @@ class ModelTrainer():
             hyperparameters (dict): dictionary of hyperparameters for model
         """
         self.common_cfg = common_cfg
-        if load_model and model_path is None:
-            raise AttributeError("No model path provided to load from")
+        if load_model and model_obj is None:
+            raise AttributeError("No model object provided to load from")
 
-        self.model_path = model_path
         self.params = model_params
         if load_model:
-            self.pipeline = joblib.load(model_path)
+            self.pipeline = joblib.load(model_obj)
             self.params = self.pipeline.get_params()
         else:
             self.model = instantiate(model_class, **self.params)
@@ -113,7 +112,8 @@ class ModelTrainer():
         """
         return self.pipeline
 
-    def save_model(self, idx: Optional[str] = None):
+    def save_model(self, idx: Optional[str] = None, 
+                   train_score=None, test_score=None):
         """_summary_
 
         Args:
@@ -144,14 +144,16 @@ class ModelTrainer():
         createdTimeS = found["createdTimeS"] if found else time.time()
 
         metadata = {
-            "minio_path": f"{bucket}/{path}",
+            "minio_bucket": bucket,
+            "minio_path": path,
             "model_type": self.model_type,
             "params": self.get_model_params(),
             "createdTimeS": createdTimeS,
             "updatedTimeS": time.time(),
+            "train_score": train_score,
+            "test_score": test_score
         }
         self.logger.warning(str(metadata))
         if mongo_dao.upsert(_id, metadata) is None:  # type: ignore
             raise MongoError(f"Upsert is failed for {_id}")
         return _id
-
