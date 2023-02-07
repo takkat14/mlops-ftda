@@ -9,7 +9,7 @@ Here you can find Flask-based web application for very dummy text classification
 * `endpoints.py` -- contains API documentaion and implementation. Swagger friendly :)
 * `configs` -- yaml configs directory for fancy hydra-based configs.
 * `configurator.py` -- global config is generated here
-* `logger.py` -- it was a time, I would like to record logs, but, well... Global as configurator is.
+* `logger.py` -- therewas a time, I would like to record logs, but, well... Global as configurator is.
 
 ## How to run on my local machine?
 Prequisits: you need Docker :( because mongoDB and MinIO were pulled and run in the background
