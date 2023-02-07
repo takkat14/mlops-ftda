@@ -17,8 +17,8 @@ RUN pip3 install poetry
 RUN echo 'Installing dependencies'
 RUN poetry install
 
-# RUN echo 'Exposing ports'
-# EXPOSE 5001 9090
+RUN echo 'Exposing ports'
+EXPOSE 5001 9090
 
 RUN echo 'Adding run command'
 ENV RUNTIME_DOCKER Yes

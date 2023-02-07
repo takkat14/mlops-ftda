@@ -73,3 +73,6 @@ It's pretty simple:
 docker-compose -f docker-compose.yaml up --build   
 ```
 When you are done, just run `docker-compose down`.
+
+## One more thing. 
+Repo has workflows on pushes as well ;)
