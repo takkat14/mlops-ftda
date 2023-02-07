@@ -56,6 +56,7 @@ docker run \
     -e "MINIO_ROOT_PASSWORD=preffered_password_but_change_it_in_configs_firstly" \
     quay.io/minio/minio server /data --console-address ":9090"
 ```
+By default: **MINIO_ROOT_USER=mlops-sucker, MINIO_ROOT_PASSWORD=i-love-mlops**
 The image is pushed to DockerHub, therefore we can pull it. BE AWARE: I build the image on M1 Macbook, that's why pulled image could not fit. Feel free to rebuild image.
 ```
 docker pull takkat14/mlops-web-flask:latest
